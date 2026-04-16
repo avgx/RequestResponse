@@ -2,7 +2,20 @@
 
 RequestResponse provides a clear and convenient API for modeling network requests using `Request<Response>` type.
 And its `RequestBuilder` makes it easy to create `URL` or `URLRequest`.
- 
+
+## Requirements
+
+- **Swift 6.1+** (package manifest uses `swift-tools-version: 6.1`; newer toolchains such as 6.2 are fine).
+- Platforms declared in `Package.swift`: iOS 15+, tvOS 15+, macOS 13+, watchOS 9+, visionOS 1+.
+
+## Continuous integration
+
+Workflows are under `.github/workflows/` and use **Swift 6.1** on **macOS** only (`macos-latest`).
+
+| Workflow | When it runs | What it does |
+|----------|----------------|----------------|
+| **CI** (`ci.yml`) | Push and pull requests to **`main`** | `swift build` and `swift test` |
+| **Release** (`release.yml`) | Push of a git tag matching **`v*.*.*`** (e.g. `v1.2.0`) | `swift build -c release`, `swift test`, then a **GitHub Release** with auto-generated notes |
 
 ## Installation (SPM)
 
