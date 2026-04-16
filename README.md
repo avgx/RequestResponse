@@ -99,6 +99,40 @@ let mapped = response.map { $0.id }
 
 Decoded generic types must be **`Decodable & Sendable`** (Swift 6).
 
+## Real usage (`RequestBuilder` + httpbin)
+
+Same flow as `requestBuilder_realUsage` in [`Tests/RequestResponseTests/RequestBuilderTests.swift`](Tests/RequestResponseTests/RequestBuilderTests.swift): POST JSON to [httpbin.org/post](https://httpbin.org/post); the response echoes your JSON under `json`. That test is `@Test(.disabled)` because it needs network access.
+
+```swift
+import Foundation
+import RequestResponse
+
+struct Payload: Codable, Sendable {
+    let id: Int
+}
+
+struct HttpBinResponse<T: Decodable & Sendable>: Decodable, Sendable {
+    let json: T
+}
+
+func httpbinEcho<T: Decodable & Sendable>(for request: Request<T>) async throws -> Response<T> {
+    let httpBinURL = URL(string: "https://httpbin.org")!
+    let builder = RequestBuilder(baseURL: httpBinURL, encoder: JSONEncoder())
+    let urlRequest = try await builder.urlRequest(for: request)
+    let (data, urlResponse) = try await URLSession.shared.data(for: urlRequest)
+    let value: T = try await decodeBody(data, using: JSONDecoder())
+    return Response(value: value, data: data, response: urlResponse)
+}
+
+let request = Request<HttpBinResponse<Payload>>(
+    path: "post",
+    method: .post,
+    body: Payload(id: 42)
+)
+let result = try await httpbinEcho(for: request)
+// result.statusCode == 200, result.value.json.id == 42
+```
+
 ## Continuous integration
 
 Workflows are under `.github/workflows/` and use **Swift 6.1** on **macOS** only (`macos-latest`).
