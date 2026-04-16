@@ -16,7 +16,7 @@ public struct Request<Response>: @unchecked Sendable {
     /// Request query items.
     public var query: [(String, String?)]?
     /// Request body.
-    public var body: Encodable?
+    public var body: (any Encodable & Sendable)?
     /// Request headers to be added to the request.
     public var headers: [String: String]?
     /// ID provided by the user. Not used by the API client.
@@ -27,7 +27,7 @@ public struct Request<Response>: @unchecked Sendable {
         path: String,
         method: HTTPMethod = .get,
         query: [(String, String?)]? = nil,
-        body: Encodable? = nil,
+        body: (any Encodable & Sendable)? = nil,
         headers: [String: String]? = nil,
         id: String? = nil
     ) {
@@ -46,7 +46,7 @@ extension Request where Response == Void {
         path: String,
         method: HTTPMethod = .get,
         query: [(String, String?)]? = nil,
-        body: Encodable? = nil,
+        body: (any Encodable & Sendable)? = nil,
         headers: [String: String]? = nil,
         id: String? = nil
     ) {
