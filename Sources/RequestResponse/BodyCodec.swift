@@ -1,9 +1,5 @@
 import Foundation
 
-public protocol OptionalDecoding {}
-
-extension Optional: OptionalDecoding {}
-
 public func encodeBody(_ value: Encodable & Sendable, using encoder: JSONEncoder) async throws -> Data? {
     if let data = value as? Data {
         return data
@@ -15,6 +11,10 @@ public func encodeBody(_ value: Encodable & Sendable, using encoder: JSONEncoder
         }.value
     }
 }
+
+protocol OptionalDecoding {}
+
+extension Optional: OptionalDecoding {}
 
 public func decodeBody<T: Decodable & Sendable>(_ data: Data, using decoder: JSONDecoder) async throws -> T {
     if data.isEmpty, T.self is OptionalDecoding.Type {

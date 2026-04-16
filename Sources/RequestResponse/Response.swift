@@ -1,10 +1,3 @@
-// The MIT License (MIT)
-//
-// Copyright (c) 2021-2022 Alexander Grebenyuk (github.com/kean).
-//
-// Changed 2026 Alexey Govorovsky (github.com/avgx).
-//
-
 import Foundation
 
 /// A response with an associated value and metadata.
