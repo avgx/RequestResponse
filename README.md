@@ -8,14 +8,6 @@ And its `RequestBuilder` makes it easy to create `URL` or `URLRequest`.
 - **Swift 6.1+** (package manifest uses `swift-tools-version: 6.1`; newer toolchains such as 6.2 are fine).
 - Platforms declared in `Package.swift`: iOS 15+, tvOS 15+, macOS 13+, watchOS 9+, visionOS 1+.
 
-## Continuous integration
-
-Workflows are under `.github/workflows/` and use **Swift 6.1** on **macOS** only (`macos-latest`).
-
-| Workflow | When it runs | What it does |
-|----------|----------------|----------------|
-| **CI** (`ci.yml`) | Push and pull requests to **`main`** | `swift build` and `swift test` |
-| **Release** (`release.yml`) | Push of a git tag matching **`v*.*.*`** (e.g. `v1.2.0`) | `swift build -c release`, `swift test`, then a **GitHub Release** with auto-generated notes |
 
 ## Installation (SPM)
 
@@ -40,8 +32,6 @@ targets: [
 | `RequestBuilder` | Joins `baseURL` + path + query → `URL`, and → `URLRequest` with JSON `Content-Type` / `Accept` when appropriate |
 | `Response<T>` | Decoded value plus raw `Data` and `URLResponse` (e.g. status code) |
 | `encodeBody` / `decodeBody` | JSON encoding/decoding with special cases for `Data`, `String`, and empty body → optional `nil` |
-
-This package does **not** perform networking by itself; use `URLSession` (or another client) with the `URLRequest` from `RequestBuilder`.
 
 
 ## Building URLs and `URLRequest`
@@ -108,6 +98,15 @@ let mapped = response.map { $0.id }
 - **`decodeBody`** — `Data` / `String` shortcuts; empty `Data` decodes to `nil` when the target type is an **optional** (via `OptionalDecoding`); otherwise JSON decode.
 
 Decoded generic types must be **`Decodable & Sendable`** (Swift 6).
+
+## Continuous integration
+
+Workflows are under `.github/workflows/` and use **Swift 6.1** on **macOS** only (`macos-latest`).
+
+| Workflow | When it runs | What it does |
+|----------|----------------|----------------|
+| **CI** (`ci.yml`) | Push and pull requests to **`main`** | `swift build` and `swift test` |
+| **Release** (`release.yml`) | Push of a git tag matching **`v*.*.*`** (e.g. `v1.2.0`) | `swift build -c release`, `swift test`, then a **GitHub Release** with auto-generated notes |
 
 ## License
 
