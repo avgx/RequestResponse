@@ -1,37 +1,38 @@
 import Foundation
 
-/// Builds resolved URLs and `URLRequest` values from a ``Request`` and client context (base URL, encoder, default headers).
+/// Builds resolved URLs and `URLRequest` values from a ``Request`` and client context (base URL, body encoding, default headers).
 public struct RequestBuilder: Sendable {
     public let baseURL: URL
-    public let encoder: JSONEncoder
+    
     /// Values from `URLSessionConfiguration.httpAdditionalHeaders`, used for default Content-Type / Accept checks.
     public let sessionDefaultHeaders: [String: String]?
 
-    private let encodeBody: @Sendable (any Encodable & Sendable, JSONEncoder) async throws -> Data?
+    private let encodeBody: @Sendable (any Encodable & Sendable) async throws -> Data?
 
-    /// Same behavior as the public `encodeBody` in the EncodeDecode module, duplicated here so RequestResponse does not depend on that target.
-    public static func defaultEncodeBody(_ value: any Encodable & Sendable, _ encoder: JSONEncoder) async throws -> Data? {
-        if let data = value as? Data {
-            return data
-        }
-        if let string = value as? String {
-            return string.data(using: .utf8)
-        }
-        return try await Task.detached {
-            try encoder.encode(value)
-        }.value
-    }
-
+    /// Full control over how request bodies are encoded (JSON, custom binary, empty, etc.).
     public init(
         baseURL: URL,
-        encoder: JSONEncoder,
         sessionDefaultHeaders: [String: String]? = nil,
-        encodeBody: @escaping @Sendable (any Encodable & Sendable, JSONEncoder) async throws -> Data? = RequestBuilder.defaultEncodeBody
+        encodeBody: @escaping @Sendable (any Encodable & Sendable) async throws -> Data?
     ) {
         self.baseURL = baseURL
-        self.encoder = encoder
         self.sessionDefaultHeaders = sessionDefaultHeaders
         self.encodeBody = encodeBody
+    }
+
+    /// JSON-friendly encoding: `Data` and `String` pass through; other values are JSON-encoded. The encoder is not stored on the builder; it is captured by the closure.
+    public static func json(
+        baseURL: URL,
+        encoder: JSONEncoder,
+        sessionDefaultHeaders: [String: String]? = nil
+    ) -> RequestBuilder {
+        RequestBuilder(baseURL: baseURL, sessionDefaultHeaders: sessionDefaultHeaders) { value in
+            if let data = value as? Data { return data }
+            if let string = value as? String { return string.data(using: .utf8) }
+            return try await Task.detached {
+                try encoder.encode(value)
+            }.value
+        }
     }
 
     public func url<T>(for request: Request<T>) throws -> URL {
@@ -61,7 +62,7 @@ public struct RequestBuilder: Sendable {
         urlRequest.allHTTPHeaderFields = request.headers
         urlRequest.httpMethod = request.method.rawValue
         if let body = request.body {
-            urlRequest.httpBody = try await encodeBody(body, encoder)
+            urlRequest.httpBody = try await encodeBody(body)
             if urlRequest.value(forHTTPHeaderField: "Content-Type") == nil,
                sessionDefaultHeaders?["Content-Type"] == nil {
                 urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")

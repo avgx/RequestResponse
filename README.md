@@ -1,13 +1,11 @@
 # RequestResponse
 
-RequestResponse provides a clear and convenient API for modeling network requests using `Request<Response>` type.
-And its `RequestBuilder` makes it easy to create `URL` or `URLRequest`.
+Small Swift package for modeling HTTP calls with a typed `Request<Response>`, building `URL` / `URLRequest` with `RequestBuilder`, and wrapping results in `Response<T>`.
 
 ## Requirements
 
-- **Swift 6.1+** (package manifest uses `swift-tools-version: 6.1`; newer toolchains such as 6.2 are fine).
-- Platforms declared in `Package.swift`: iOS 15+, tvOS 15+, macOS 13+, watchOS 9+, visionOS 1+.
-
+- **Swift 6.1+** (`swift-tools-version: 6.1`; newer toolchains such as 6.2 are fine).
+- Platforms in `Package.swift`: iOS 15+, tvOS 15+, macOS 13+, watchOS 9+, visionOS 1+.
 
 ## Installation (SPM)
 
@@ -23,31 +21,44 @@ targets: [
 ]
 ```
 
-
 ## Overview
 
-| Piece | Role |
-|--------|------|
-| `Request<Response>` | Method, path (relative to a base URL), query, optional JSON body, headers |
-| `RequestBuilder` | Joins `baseURL` + path + query → `URL`, and → `URLRequest` with JSON `Content-Type` / `Accept` when appropriate |
-| `Response<T>` | Decoded value plus raw `Data` and `URLResponse` (e.g. status code) |
+| Type | Role |
+|------|------|
+| `Request<Response>` | Method, path (relative to a base URL), query, optional body (`Encodable`), headers |
+| `RequestBuilder` | Resolves `baseURL` + path + query → `URL`, and → `URLRequest` with optional default `Content-Type` / `Accept` |
+| `Response<T>` | Typed value plus raw `Data` and `URLResponse` (e.g. HTTP status) |
 
+The `Response` generic is for type flow at the call site; it does not change how URLs or bodies are built.
 
+## `RequestBuilder` and body encoding
 
-## Building URLs and `URLRequest`
+`RequestBuilder` does **not** hold a `JSONEncoder`. You supply how bodies become `Data`:
 
-Create a builder. 
-Build requests.
+1. **`RequestBuilder.json(baseURL:encoder:sessionDefaultHeaders:)`** — `Data` and `String` pass through unchanged; any other `Encodable` is encoded with your `JSONEncoder` inside a detached task (same idea as typical REST clients).
+
+2. **`RequestBuilder(baseURL:sessionDefaultHeaders:encodeBody:)`** — general-purpose: `encodeBody` is `@Sendable (Encodable & Sendable) async throws -> Data?`. Use this for YAML, CBOR, form encoding, etc., by capturing whatever encoders you need in the closure.
+
+Default headers when building `URLRequest`:
+
+- If there is a **body**, `Content-Type` is set to `application/json` when neither the request nor `sessionDefaultHeaders` already set it.
+- `Accept` is set to `application/json` when not already set on the request or in `sessionDefaultHeaders`.
+- Pass `URLSessionConfiguration.httpAdditionalHeaders` as `sessionDefaultHeaders` if the session already defines `Accept` / `Content-Type` and you want the builder **not** to overwrite them.
+
+### Example
 
 ```swift
+import Foundation
+import RequestResponse
+
 struct SessionBody: Codable, Sendable {
     var username: String
     var password: String
 }
 
 let encoder = JSONEncoder()
-let base = try URL(string: "https://example.org/")!.resolvingRoot("//example.org/tpan1/demo/webclient/")
-let builder = RequestBuilder(baseURL: base, encoder: encoder)
+let base = URL(string: "https://example.org/api/")!
+let builder = RequestBuilder.json(baseURL: base, encoder: encoder)
 
 let request = Request<String>(
     path: "v1/session",
@@ -62,86 +73,44 @@ let urlRequest = try await builder.urlRequest(for: request)
 
 ### URL and query rules
 
-- `RequestBuilder` concatenates `baseURL.absoluteString` with the request path; a trailing `/` on the base and no leading `/` on the path avoids double slashes.
-- Query items are built with `URLComponents`; `nil` values produce keys without values (e.g. `empty` in `?a=1&empty`).
+- The builder concatenates `baseURL.absoluteString` with the request path. A trailing `/` on the base and a path without a leading `/` avoids double slashes.
+- Query items use `URLComponents`. A `nil` value in `(String, String?)` yields a key with no `=` value (e.g. `?a=1&empty`).
 
-### Headers and JSON defaults
+## `Request` model
 
-- If the request has a **body**, `Content-Type` is set to `application/json` when neither the request nor `sessionDefaultHeaders` already set it.
-- `Accept` is set to `application/json` when not already set on the request or in `sessionDefaultHeaders`.
-- Pass `URLSessionConfiguration.httpAdditionalHeaders` into `sessionDefaultHeaders` if the session already defines `Accept` / `Content-Type` and you want the builder to **not** override them.
+- **`body`** — `(any Encodable & Sendable)?` for strict concurrency when encoding off the main actor.
+- **`HTTPMethod`** — `ExpressibleByStringLiteral` plus common constants (`GET`, `POST`, …).
 
-## Request model
+## `Response` wrapper
 
-- **`Request<Response>`** — the `Response` type parameter is for documentation/type flow only; it does not affect encoding.
-- **`body`** — `(any Encodable & Sendable)?`, matching strict concurrency when encoding off the main actor.
-- **`HTTPMethod`** — string literal and common constants (GET, POST, …).
-
-## Response wrapper
-
-After you receive `(Data, URLResponse)` from the session, wrap a decoded value:
+After `URLSession` returns `(Data, URLResponse)`, attach a decoded value:
 
 ```swift
 struct MyModel: Decodable, Sendable {
     var id: Int
 }
 
-let decoded: MyModel = try await decodeBody(data, using: JSONDecoder())
+let decoded = try JSONDecoder().decode(MyModel.self, from: data)
 let response = Response(value: decoded, data: data, response: urlResponse)
 let code = response.statusCode
 let mapped = response.map { $0.id }
 ```
 
-## Body encoding and decoding
+Decoding is not part of this package; use `JSONDecoder`, another codec library, or your own helpers.
 
-- **`encodeBody`** — `Data` and `String` pass through; other values are JSON-encoded (asynchronously via `Task.detached`).
-- **`decodeBody`** — `Data` / `String` shortcuts; empty `Data` decodes to `nil` when the target type is an **optional** (via `OptionalDecoding`); otherwise JSON decode.
+## Integration sample (httpbin)
 
-Decoded generic types must be **`Decodable & Sendable`** (Swift 6).
-
-## Real usage (`RequestBuilder` + httpbin)
-
-Same flow as `requestBuilder_realUsage` in [`Tests/RequestResponseTests/RequestBuilderTests.swift`](Tests/RequestResponseTests/RequestBuilderTests.swift): POST JSON to [httpbin.org/post](https://httpbin.org/post); the response echoes your JSON under `json`. That test is `@Test(.disabled)` because it needs network access.
-
-```swift
-import Foundation
-import RequestResponse
-
-struct Payload: Codable, Sendable {
-    let id: Int
-}
-
-struct HttpBinResponse<T: Decodable & Sendable>: Decodable, Sendable {
-    let json: T
-}
-
-func httpbinEcho<T: Decodable & Sendable>(for request: Request<T>) async throws -> Response<T> {
-    let httpBinURL = URL(string: "https://httpbin.org")!
-    let builder = RequestBuilder(baseURL: httpBinURL, encoder: JSONEncoder())
-    let urlRequest = try await builder.urlRequest(for: request)
-    let (data, urlResponse) = try await URLSession.shared.data(for: urlRequest)
-    let value: T = try await decodeBody(data, using: JSONDecoder())
-    return Response(value: value, data: data, response: urlResponse)
-}
-
-let request = Request<HttpBinResponse<Payload>>(
-    path: "post",
-    method: .post,
-    body: Payload(id: 42)
-)
-let result = try await httpbinEcho(for: request)
-// result.statusCode == 200, result.value.json.id == 42
-```
+The disabled test `requestBuilder_realUsage` in [`Tests/RequestResponseTests/IntegrationTests.swift`](Tests/RequestResponseTests/IntegrationTests.swift) POSTs JSON to [https://httpbin.org/post](https://httpbin.org/post); the JSON body is echoed under a `json` field. The test stays disabled because it requires network access.
 
 ## Continuous integration
 
-Workflows are under `.github/workflows/` and use **Swift 6.1** on **macOS** only (`macos-latest`).
+Workflows live under `.github/workflows/` and use **Swift 6.1** on **macOS** (`macos-latest`).
 
-| Workflow | When it runs | What it does |
-|----------|----------------|----------------|
-| **CI** (`ci.yml`) | Push and pull requests to **`main`** | `swift build` and `swift test` |
-| **Release** (`release.yml`) | Push of a git tag matching **`v*.*.*`** (e.g. `v1.2.0`) | `swift build -c release`, `swift test`, then a **GitHub Release** with auto-generated notes |
+| Workflow | When | What |
+|----------|------|------|
+| **CI** (`ci.yml`) | Push and pull requests to **`main`** | `swift build`, `swift test` |
+| **Release** (`release.yml`) | Tag **`v*.*.*`** (e.g. `v1.2.0`) | `swift build -c release`, `swift test`, then a GitHub Release with generated notes |
 
 ## License
 
-RequestResponse is available under the MIT license. See the LICENSE file for more info.
+MIT. See the LICENSE file.

@@ -3,7 +3,7 @@ import Foundation
 import RequestResponse
 
 @Test func requestBuilder_url_joinsPathAndQuery() throws {
-    let builder = RequestBuilder(baseURL: URL(string: "https://example.org/root/")!, encoder: JSONEncoder())
+    let builder = RequestBuilder.json(baseURL: URL(string: "https://example.org/root/")!, encoder: JSONEncoder())
     let request = Request<String>(
         path: "v1/session",
         query: [("a", "1"), ("empty", nil)]
@@ -14,7 +14,7 @@ import RequestResponse
 }
 
 @Test func requestBuilder_urlRequest_setsDefaultsAndBody() async throws {
-    let builder = RequestBuilder(baseURL: URL(string: "https://example.org/")!, encoder: JSONEncoder())
+    let builder = RequestBuilder.json(baseURL: URL(string: "https://example.org/")!, encoder: JSONEncoder())
     let request = Request<String>(
         path: "v1/session",
         method: .post,
@@ -29,7 +29,7 @@ import RequestResponse
 }
 
 @Test func requestBuilder_urlRequest_respectsSessionDefaultHeaders() async throws {
-    let builder = RequestBuilder(
+    let builder = RequestBuilder.json(
         baseURL: URL(string: "https://example.org/")!,
         encoder: JSONEncoder(),
         sessionDefaultHeaders: ["Accept": "application/custom", "Content-Type": "application/custom"]
