@@ -1,5 +1,5 @@
 import Testing
-@testable import RequestResponse
+import RequestResponse
 
 @Test func request_emptyPathNormalizesToSlash() {
     let request = Request<String>(path: "")

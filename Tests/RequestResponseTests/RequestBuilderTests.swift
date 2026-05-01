@@ -1,6 +1,7 @@
 import Testing
 import Foundation
-@testable import RequestResponse
+import EncodeDecode
+import RequestResponse
 
 private struct TestPayload: Codable, Sendable {
     let id: Int

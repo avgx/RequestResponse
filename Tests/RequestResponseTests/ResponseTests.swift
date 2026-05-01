@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import RequestResponse
+import RequestResponse
 
 @Test func response_statusCodeAndMap() throws {
     let url = URL(string: "https://example.org/v1")!
