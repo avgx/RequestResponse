@@ -31,7 +31,7 @@ targets: [
 | `Request<Response>` | Method, path (relative to a base URL), query, optional JSON body, headers |
 | `RequestBuilder` | Joins `baseURL` + path + query → `URL`, and → `URLRequest` with JSON `Content-Type` / `Accept` when appropriate |
 | `Response<T>` | Decoded value plus raw `Data` and `URLResponse` (e.g. status code) |
-| `encodeBody` / `decodeBody` | JSON encoding/decoding with special cases for `Data`, `String`, and empty body → optional `nil` |
+
 
 
 ## Building URLs and `URLRequest`

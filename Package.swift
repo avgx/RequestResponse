@@ -18,26 +18,14 @@ let package = Package(
             name: "RequestResponse",
             targets: ["RequestResponse"]
         ),
-        .library(
-            name: "EncodeDecode",
-            targets: ["EncodeDecode"]
-        ),
     ],
     targets: [
-        .target(
-            name: "EncodeDecode"
-        ),
         .target(
             name: "RequestResponse"
         ),
         .testTarget(
-            name: "EncodeDecodeTests",
-            dependencies: ["EncodeDecode"],
-            resources: [.copy("Resources")]
-        ),
-        .testTarget(
             name: "RequestResponseTests",
-            dependencies: ["RequestResponse", "EncodeDecode"]
+            dependencies: ["RequestResponse"]
         ),
     ]
 )
